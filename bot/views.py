@@ -1,20 +1,14 @@
-import datetime
 import telebot
 from django.shortcuts import HttpResponse
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from environs import Env
 from telebot import types
-from telebot.apihelper import ApiTelegramException
-from telebot.types import CallbackQuery
 from .models import *
 from django.db.models import Q
 
 env = Env()
 env.read_env()
-
-# CHANNEL = env.int("CHANNEL")
-# ADMIN = env.int("ADMIN")
 
 bot = telebot.TeleBot(env.str("BOT_TOKEN"), parse_mode="HTML")
 
@@ -50,11 +44,10 @@ def start(message: types.Message):
         for i in range(0, len(buttons), buttons_per_row):
             row_buttons = buttons[i : i + buttons_per_row]
             markup.row(*[types.KeyboardButton(b.name) for b in row_buttons])
-        markup.add(types.KeyboardButton("Ortga"))
 
         bot.send_message(
             message.from_user.id,
-            "Kerakli bo`limni tanlang yoki joy(oshxona, masjid, do`kon..) nomini kiriting!",
+            "Kerakli bo`limni tanlang!",
             reply_markup=markup,
         )
 
@@ -137,7 +130,40 @@ def search(message: types.Message):
 
 
 def get_search(message: types.Message):
-    places = Place.objects.filter(
-        Q(name__icontains=message.text) | Q(city__name__icontains=message.text)| Q(type__name__icontains=message.text | Q(desc__icontains=message.text))
-    )
-    bot.send_message(message.chat.id, f"Hello, {input}. What's your age?")
+    print(11)
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    buttons = Type.objects.all()
+
+    buttons_per_row = 2
+    markup.add(types.KeyboardButton("Qidiruv"))
+    for i in range(0, len(buttons), buttons_per_row):
+        row_buttons = buttons[i : i + buttons_per_row]
+        markup.row(*[types.KeyboardButton(b.name) for b in row_buttons])
+    keys = message.text.split()
+    places = []
+    for key in keys:
+        res = Place.objects.filter(
+            Q(name__icontains=key)
+            | Q(city__name__icontains=key)
+            | Q(type__name__icontains=key)
+            | Q(desc__icontains=key)
+        )
+        if res not in places:
+            places.append(res)
+    if len(places) > 0:
+        bot.send_message(
+            message.chat.id,
+            f"{message.text} so`zi bo`yicha yuborilgan sovor natijalari!",
+            reply_markup=markup,
+        )
+
+        for place in places:
+            print(place)
+            text = f"""Joy turi: {place.type}\nJoy nomi: {place.name}\nShahar: {place.city}\nMa'lumot: {place.desc}"""
+            bot.send_message(message.chat.id, text, reply_markup=markup)
+    else:
+        bot.send_message(
+            message.chat.id,
+            "Yuborilgan sorov bo`yicha ma`lumot topilmadi!",
+            reply_markup=markup,
+        )
